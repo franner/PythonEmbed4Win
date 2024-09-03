@@ -20,17 +20,50 @@ Invoke-WebRequest -Uri $embedUrl -OutFile $destinationPath
 
 # Step 5: Extract the zip file
 Write-Host "Extracting the package..."
-Expand-Archive -Path $destinationPath -DestinationPath "$PSScriptRoot\python-embed" -Force
+$extractPath = "$PSScriptRoot\python-embed"
+Expand-Archive -Path $destinationPath -DestinationPath $extractPath -Force
 
 # Step 6: Remove the zip file after extraction
 Remove-Item $destinationPath
 
-# Step 7: Set up environment variables (optional)
-$pythonPath = "$PSScriptRoot\python-embed"
-$env:Path = "$pythonPath;$env:Path"
+# Step 7: Locate and modify the .pth file to enable pip installation
+$pypathFile = Get-ChildItem -Path $extractPath -Filter "*.pth" | Select-Object -First 1
 
-# Step 8: Test the Python installation
+if ($pypathFile) {
+    Write-Host "Modifying $($pypathFile.Name) to enable site-packages and pip..."
+    (Get-Content -Path $pypathFile.FullName) | ForEach-Object { $_ -replace '#import site', 'import site' } | Set-Content -Path $pypathFile.FullName
+} else {
+    Write-Host "Error: Could not find the Python .pth file. Aborting."
+    exit 1
+}
+
+# Step 8: Download get-pip.py script
+$pipUrl = "https://bootstrap.pypa.io/get-pip.py"
+$pipScriptPath = "$PSScriptRoot\get-pip.py"
+
+Write-Host "Downloading get-pip.py from $pipUrl..."
+Invoke-WebRequest -Uri $pipUrl -OutFile $pipScriptPath
+
+# Step 9: Install pip
+Write-Host "Installing pip..."
+& "$extractPath\python.exe" $pipScriptPath
+
+# Step 10: Clean up
+Write-Host "Cleaning up..."
+Remove-Item $pipScriptPath
+
+# Step 11: Verify pip installation
+$pipExePath = "$extractPath\Scripts\pip.exe"
+if (Test-Path $pipExePath) {
+    Write-Host "pip successfully installed!"
+    & "$pipExePath" --version
+} else {
+    Write-Host "pip installation failed."
+    exit 1
+}
+
+# Step 12: Test the Python installation
 Write-Host "Testing Python installation..."
-& "$pythonPath\python.exe" -V
+& "$extractPath\python.exe" -V
 
-Write-Host "Python $latestVersion setup complete!"
+Write-Host "Python $latestVersion and pip setup complete!"
