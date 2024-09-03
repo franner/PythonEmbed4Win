@@ -29,14 +29,14 @@ Start-Sleep -Seconds 5  # Adjust the sleep duration as necessary
 # Step 7: Remove the zip file after extraction
 Remove-Item $destinationPath
 
-# Step 8: Locate and modify the .pth file to enable pip installation
-$pypathFile = Get-ChildItem -Path $extractPath -Filter "*.pth" | Select-Object -First 1
+# Step 8: Locate and modify the ._pth file to enable pip installation
+$pypathFile = Get-ChildItem -Path $extractPath -Filter "*._pth" | Select-Object -First 1
 
 if ($pypathFile) {
     Write-Host "Modifying $($pypathFile.Name) to enable site-packages and pip..."
     (Get-Content -Path $pypathFile.FullName) | ForEach-Object { $_ -replace '#import site', 'import site' } | Set-Content -Path $pypathFile.FullName
 } else {
-    Write-Host "Error: Could not find the Python .pth file. Aborting."
+    Write-Host "Error: Could not find the Python ._pth file. Aborting."
     exit 1
 }
 
